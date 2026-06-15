@@ -1,7 +1,10 @@
-Prompt given : olsujabu 
-Date : 2026/06/15
-Executer : Claude 4.8 xD
-Full prompt is at the bottom 
+## Prompt Information
+| Field | Value |
+|---|---|
+| Prompt given | `olsujabu` |
+| Date | 2026/06/15 |
+| Executer | Claude 4.8 xD |
+| Full prompt | See below |
 
 # CodeRacer
 
