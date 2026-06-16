@@ -86,17 +86,24 @@ export function useRoom(code: string, userId: string, username: string): RoomApi
       const state = channel.presenceState() as Record<string, Array<Record<string, unknown>>>
       const present = new Set<string>()
       for (const key of Object.keys(state)) {
-        const meta = state[key][0] ?? {}
+        const metas = state[key]
+        if (!metas || metas.length === 0) continue
         present.add(key)
+        // A key can briefly hold multiple presences (e.g. a client reconnects
+        // mid-race), so merge across them — never let a stale entry at [0] mask
+        // the latest state such as a finish.
+        const finishedMeta = metas.find((m) => m.finished)
+        const latest = metas[metas.length - 1]
+        const meta = finishedMeta ?? latest
         const p = ensure(key, (meta.username as string) ?? 'player')
         p.username = (meta.username as string) ?? p.username
-        p.ready = Boolean(meta.ready)
-        if (meta.finished) {
+        p.ready = metas.some((m) => m.ready)
+        if (finishedMeta) {
           p.finished = true
           p.progress = 1
-          p.finishWpm = (meta.finishWpm as number) ?? p.finishWpm
-          p.finishAccuracy = (meta.finishAccuracy as number) ?? p.finishAccuracy
-          p.finishMs = (meta.finishMs as number) ?? p.finishMs
+          p.finishWpm = (finishedMeta.finishWpm as number) ?? p.finishWpm
+          p.finishAccuracy = (finishedMeta.finishAccuracy as number) ?? p.finishAccuracy
+          p.finishMs = (finishedMeta.finishMs as number) ?? p.finishMs
         }
       }
       for (const id of Object.keys(playersRef.current)) {

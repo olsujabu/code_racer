@@ -18,7 +18,11 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
     })
   : null
 
-// Dev-only: expose the client for quick debugging in the console.
+// Dev-only: expose the client (and a factory for independent connections, used
+// to simulate a second player during testing) for quick console debugging.
 if (import.meta.env.DEV && supabase) {
-  ;(window as unknown as { supabase: SupabaseClient }).supabase = supabase
+  const w = window as unknown as { supabase: SupabaseClient; __sbNewClient: () => SupabaseClient }
+  w.supabase = supabase
+  w.__sbNewClient = () =>
+    createClient(url as string, anonKey as string, { realtime: { params: { eventsPerSecond: 20 } } })
 }
