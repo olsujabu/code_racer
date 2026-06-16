@@ -11,6 +11,10 @@ interface EditorWindowProps {
   onFocus: () => void
   onBlur: () => void
   results: ReactNode
+  /** When locked, keystrokes are ignored and the focus hint is replaced. */
+  locked?: boolean
+  /** Overlay shown while locked (e.g. a race countdown). */
+  lockedOverlay?: ReactNode
 }
 
 export function EditorWindow({
@@ -22,6 +26,8 @@ export function EditorWindow({
   onFocus,
   onBlur,
   results,
+  locked = false,
+  lockedOverlay,
 }: EditorWindowProps) {
   return (
     <div className="editor">
@@ -52,7 +58,7 @@ export function EditorWindow({
           type="text"
           value=""
           onChange={() => {}}
-          onKeyDown={engine.onKeyDown}
+          onKeyDown={locked ? undefined : engine.onKeyDown}
           onFocus={onFocus}
           onBlur={onBlur}
           autoComplete="off"
@@ -62,7 +68,7 @@ export function EditorWindow({
           aria-label={`Type the implementation in ${filename}`}
         />
 
-        {!focused && !engine.isComplete && (
+        {!focused && !engine.isComplete && !locked && (
           <div className="focus-overlay">
             <div className="focus-hint">
               <span className="focus-hint-key">Click or tap</span> to start typing
@@ -70,7 +76,9 @@ export function EditorWindow({
           </div>
         )}
 
-        {engine.isComplete && <div className="results-overlay">{results}</div>}
+        {locked && lockedOverlay && <div className="lock-overlay">{lockedOverlay}</div>}
+
+        {engine.isComplete && results && <div className="results-overlay">{results}</div>}
       </div>
     </div>
   )

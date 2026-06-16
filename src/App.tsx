@@ -1,181 +1,130 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ALGORITHMS,
-  LANGUAGES,
-  filenameFor,
-  getAlgorithm,
-  getLanguage,
-  type LanguageId,
-} from './data/snippets'
-import { bestKey, loadBests, recordBest, type Bests } from './lib/storage'
-import { useTypingEngine } from './hooks/useTypingEngine'
-import { SelectorBar } from './components/SelectorBar'
-import { EditorWindow } from './components/EditorWindow'
-import { Hud } from './components/Hud'
-import { Controls } from './components/Controls'
-import { ResultsScreen } from './components/ResultsScreen'
+import { useCallback, useState } from 'react'
+import { isSupabaseConfigured } from './lib/supabase'
+import { saveResult } from './lib/multiplayer'
+import { useAuth } from './hooks/useAuth'
+import { SoloGame } from './components/SoloGame'
+import { MultiplayerGame } from './components/MultiplayerGame'
+import { Leaderboard } from './components/Leaderboard'
+import { AuthPanel } from './components/AuthPanel'
+
+type View = 'solo' | 'multiplayer' | 'leaderboard'
 
 export default function App() {
-  const [selectedAlgoId, setSelectedAlgoId] = useState(ALGORITHMS[0].id)
-  const [selectedLangId, setSelectedLangId] = useState<LanguageId>('python')
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [bests, setBests] = useState<Bests>(() => loadBests())
-  const [isRecord, setIsRecord] = useState(false)
-  const [focused, setFocused] = useState(false)
+  const auth = useAuth()
+  const [view, setView] = useState<View>('solo')
+  const [authOpen, setAuthOpen] = useState(false)
 
-  const inputRef = useRef<HTMLInputElement>(null)
-  const recordedRef = useRef(false)
-
-  const visibleAlgorithms = useMemo(
-    () => ALGORITHMS.filter((a) => showAdvanced || !a.advanced),
-    [showAdvanced],
-  )
-
-  const algo = getAlgorithm(selectedAlgoId)
-  const lang = getLanguage(selectedLangId)
-  const code = algo.impls[lang.id]
-  const filename = filenameFor(algo, lang)
-  const key = bestKey(algo.id, lang.id)
-  const best = bests[key]
-
-  const engine = useTypingEngine(code, lang.tokLang)
-
-  const focusInput = useCallback(() => {
-    requestAnimationFrame(() => inputRef.current?.focus())
-  }, [])
-
-  // Focus the editor on first mount for desktop convenience.
-  useEffect(() => {
-    focusInput()
-  }, [focusInput])
-
-  // Record a best score exactly once per completed run.
-  useEffect(() => {
-    if (!engine.isComplete) {
-      recordedRef.current = false
-      setIsRecord(false)
-      return
-    }
-    if (recordedRef.current) return
-    recordedRef.current = true
-    const wpm = Math.round(engine.stats.wpm)
-    const result = recordBest(bests, key, wpm)
-    setBests(result.bests)
-    setIsRecord(result.isRecord)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine.isComplete])
-
-  const selectAlgo = useCallback(
-    (id: string) => {
-      setSelectedAlgoId(id)
-      focusInput()
+  // Solo personal bests also feed the global leaderboard when signed in.
+  const handleSoloComplete = useCallback(
+    (r: {
+      algorithmId: string
+      languageId: string
+      wpm: number
+      accuracy: number
+      errors: number
+      timeMs: number
+    }) => {
+      if (!auth.user || !auth.username) return
+      void saveResult({
+        playerId: auth.user.id,
+        username: auth.username,
+        algorithmId: r.algorithmId,
+        languageId: r.languageId,
+        wpm: r.wpm,
+        accuracy: r.accuracy,
+        errors: r.errors,
+        timeMs: r.timeMs,
+      })
     },
-    [focusInput],
+    [auth.user, auth.username],
   )
-
-  const selectLang = useCallback(
-    (id: LanguageId) => {
-      setSelectedLangId(id)
-      focusInput()
-    },
-    [focusInput],
-  )
-
-  const toggleAdvanced = useCallback(
-    (next: boolean) => {
-      setShowAdvanced(next)
-      if (!next && getAlgorithm(selectedAlgoId).advanced) {
-        setSelectedAlgoId(ALGORITHMS[0].id)
-      }
-      focusInput()
-    },
-    [selectedAlgoId, focusInput],
-  )
-
-  const restart = useCallback(() => {
-    engine.reset()
-    focusInput()
-  }, [engine, focusInput])
-
-  const next = useCallback(() => {
-    const list = visibleAlgorithms
-    const idx = list.findIndex((a) => a.id === selectedAlgoId)
-    const nextAlgo = list[(idx + 1) % list.length]
-    setSelectedAlgoId(nextAlgo.id)
-    focusInput()
-  }, [visibleAlgorithms, selectedAlgoId, focusInput])
-
-  const random = useCallback(() => {
-    const list = visibleAlgorithms
-    const nextAlgo = list[Math.floor(Math.random() * list.length)]
-    const nextLang = LANGUAGES[Math.floor(Math.random() * LANGUAGES.length)]
-    setSelectedAlgoId(nextAlgo.id)
-    setSelectedLangId(nextLang.id)
-    focusInput()
-  }, [visibleAlgorithms])
-
-  // While results are showing, Enter advances to the next snippet.
-  useEffect(() => {
-    if (!engine.isComplete) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        next()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [engine.isComplete, next])
 
   return (
     <div className="app">
       <header className="app-header">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">&#9654;</span>
-          <span className="brand-name">Code<span className="brand-accent">Racer</span></span>
+        <div className="header-top">
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true">&#9654;</span>
+            <span className="brand-name">Code<span className="brand-accent">Racer</span></span>
+          </div>
+          {isSupabaseConfigured && (
+            <div className="account">
+              {auth.user ? (
+                <>
+                  <span className="account-name">@{auth.username ?? '…'}</span>
+                  <button className="control-btn account-btn" onClick={() => auth.signOut()}>
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <button className="control-btn account-btn" onClick={() => setAuthOpen(true)}>
+                  Sign in
+                </button>
+              )}
+            </div>
+          )}
         </div>
-        <p className="tagline">Type real algorithms. Beat your own speed.</p>
+        <p className="tagline">Type real algorithms. Beat your own speed{isSupabaseConfigured ? ' — or race a friend' : ''}.</p>
+
+        {isSupabaseConfigured && (
+          <nav className="nav-tabs">
+            <button className={'nav-tab' + (view === 'solo' ? ' selected' : '')} onClick={() => setView('solo')}>
+              Solo
+            </button>
+            <button
+              className={'nav-tab' + (view === 'multiplayer' ? ' selected' : '')}
+              onClick={() => setView('multiplayer')}
+            >
+              Multiplayer
+            </button>
+            <button
+              className={'nav-tab' + (view === 'leaderboard' ? ' selected' : '')}
+              onClick={() => setView('leaderboard')}
+            >
+              Leaderboard
+            </button>
+          </nav>
+        )}
       </header>
 
-      <SelectorBar
-        algorithms={visibleAlgorithms}
-        selectedAlgoId={selectedAlgoId}
-        onSelectAlgo={selectAlgo}
-        languages={LANGUAGES}
-        selectedLangId={selectedLangId}
-        onSelectLang={selectLang}
-        showAdvanced={showAdvanced}
-        onToggleAdvanced={toggleAdvanced}
-      />
+      {view === 'solo' && <SoloGame onComplete={handleSoloComplete} />}
 
-      <EditorWindow
-        filename={filename}
-        langName={lang.name}
-        engine={engine}
-        inputRef={inputRef}
-        focused={focused}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        results={
-          <ResultsScreen
-            algoName={algo.name}
-            langName={lang.name}
-            stats={engine.stats}
-            best={bests[key]}
-            isRecord={isRecord}
-            onRetry={restart}
-            onNext={next}
-          />
-        }
-      />
+      {view === 'multiplayer' && (
+        <MultiplayerView
+          ready={auth.ready}
+          userId={auth.user?.id ?? null}
+          username={auth.username}
+          onSignIn={() => setAuthOpen(true)}
+        />
+      )}
 
-      <Hud stats={engine.stats} best={best} />
+      {view === 'leaderboard' && <Leaderboard />}
 
-      <Controls onRestart={restart} onNext={next} onRandom={random} />
-
-      <footer className="app-footer">
-        Indentation is auto-skipped · best WPM saved per algorithm &amp; language
-      </footer>
+      {authOpen && <AuthPanel auth={auth} onClose={() => setAuthOpen(false)} />}
     </div>
   )
+}
+
+function MultiplayerView({
+  ready,
+  userId,
+  username,
+  onSignIn,
+}: {
+  ready: boolean
+  userId: string | null
+  username: string | null
+  onSignIn: () => void
+}) {
+  if (!ready) return <div className="notice">Loading…</div>
+  if (!userId) {
+    return (
+      <div className="notice signin-prompt">
+        <p>Sign in to race against other players and save your scores.</p>
+        <button className="control-btn primary" onClick={onSignIn}>Sign in / Sign up</button>
+      </div>
+    )
+  }
+  if (!username) return <div className="notice">Loading profile…</div>
+  return <MultiplayerGame userId={userId} username={username} />
 }
