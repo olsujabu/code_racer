@@ -20,11 +20,25 @@ export interface TypingEngine {
   isComplete: boolean
   stats: LiveStats
   activeLine: number
+  /** Cell indices auto-completed by Setting C (auto-close brackets). */
+  autoCells: number[]
   onKeyDown: (e: ReactKeyboardEvent) => void
   reset: () => void
 }
 
-export function useTypingEngine(code: string, dialect: Dialect): TypingEngine {
+export interface TypingEngineOptions {
+  /** Setting C — auto-skip a matching closing bracket/quote. */
+  autoClose?: boolean
+}
+
+// Fix 3 (Setting C): the hook now forwards an `autoClose` option to the engine
+// and surfaces `autoCells` so the code pane can mark auto-completed characters.
+export function useTypingEngine(
+  code: string,
+  dialect: Dialect,
+  options: TypingEngineOptions = {},
+): TypingEngine {
+  const autoClose = options.autoClose ?? false
   const cells = useMemo(() => buildCells(code, dialect), [code, dialect])
   const meta = useMemo(() => computeMeta(cells), [cells])
 
@@ -56,9 +70,9 @@ export function useTypingEngine(code: string, dialect: Dialect): TypingEngine {
       const action = classifyKey(e)
       if (!action) return
       e.preventDefault()
-      setState((prev) => applyAction(prev, action, cells, performance.now()))
+      setState((prev) => applyAction(prev, action, cells, performance.now(), autoClose))
     },
-    [cells],
+    [cells, autoClose],
   )
 
   const reset = useCallback(() => setState(initialState(meta)), [meta])
@@ -75,6 +89,7 @@ export function useTypingEngine(code: string, dialect: Dialect): TypingEngine {
     isComplete: state.isComplete,
     stats,
     activeLine,
+    autoCells: state.autoCells,
     onKeyDown,
     reset,
   }

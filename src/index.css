@@ -1,3 +1,29 @@
+/* CHANGE LOG:
+   - Fix 1: styles for the persistent room-code panel + expiry countdown/banner
+     (.room-active, .room-expiry, .room-expired-banner).
+   - Fix 2: disable font ligatures on every monospace surface (code pane, cells,
+     gutter, capture input, mono HUD numbers) so multi-char operators like <=,
+     =>, !=, // render as separate glyphs — essential for a typing tutor.
+   - Fix 3: styles for the "Code Style" customization section and the
+     auto-completed bracket cell highlight (.cell.auto). */
+
+/* Fix 2 — ligatures off wherever the monospace font is used. Pure CSS. */
+.code-pane,
+.code-line,
+.line-content,
+.cell,
+.gutter,
+.capture-input,
+.stat-value,
+.progress-pct,
+.results-wpm-number,
+.results-wpm-unit,
+.stats-log-line,
+.stats-log-aggrid dd {
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0, 'calt' 0, 'dlig' 0;
+}
+
 :root {
   /* Surfaces */
   --bg: #0d1017;
@@ -632,8 +658,88 @@ kbd {
 /* ---------- HUD ---------- */
 .hud {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
+}
+
+/* Fix 1 — full-width progress bar with labeled milestone ticks. */
+.progress-tile {
+  grid-column: 1 / -1;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 12px 16px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.progress-tile .stat-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.progress-pct {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--amber), var(--amber-bright));
+  box-shadow: 0 0 12px rgba(255, 180, 84, 0.4);
+  transition: width 120ms ease;
+}
+
+.progress-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.progress-tick-mark {
+  width: 2px;
+  height: 12px;
+  background: var(--border);
+  border-radius: 1px;
+}
+
+.progress-tick-label {
+  position: absolute;
+  top: 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-tile.skeleton {
+  opacity: 0.55;
+}
+
+.progress-tile.skeleton .progress-track {
+  background: var(--bg-elev);
 }
 
 .stat-tile {
@@ -775,12 +881,7 @@ kbd {
   }
 
   .hud {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .stat-tile:nth-child(4),
-  .stat-tile:nth-child(5) {
-    grid-column: span 1;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .code-pane {
@@ -1481,4 +1582,486 @@ kbd {
   .lb-snippet .lb-lang {
     display: none;
   }
+}
+
+/* ============================================================
+   Fix 2 — Algorithm info strip
+   ============================================================ */
+.algo-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: -6px 2px 0;
+  padding: 0 2px;
+}
+
+.algo-info-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.algo-info-metrics {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.algo-info-metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.algo-info-key {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
+.algo-info-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Fix 4 — code-pane font sizing
+   ============================================================ */
+.editor.code-small .code-pane {
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.editor.code-medium .code-pane {
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.editor.code-large .code-pane {
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+/* ============================================================
+   Fix 3 — Stats & Log panel
+   ============================================================ */
+.stats-log {
+  /* Cancel the layout shell's flex gap so the toggle butts flush against the
+     bottom of the Hud bar above it. */
+  margin-top: -18px;
+}
+
+.stats-log-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 0 0 12px 12px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.stats-log.open .stats-log-toggle {
+  border-radius: 0;
+  border-bottom: none;
+}
+
+.stats-log-toggle:hover {
+  color: var(--text);
+}
+
+.stats-log-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-faint);
+}
+
+.stats-log-caret {
+  font-size: 11px;
+  color: var(--amber);
+}
+
+.stats-log-body {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  animation: fade-in 160ms ease;
+}
+
+.stats-log-col-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+}
+
+.stats-log-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.stats-log-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-log-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text);
+  padding: 3px 0 3px 10px;
+  border-left: 2px solid var(--border);
+}
+
+.stats-log-line-algo {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stats-log-line-lang {
+  color: var(--text-dim);
+}
+
+.stats-log-line-sep {
+  color: var(--text-faint);
+}
+
+.stats-log-line-wpm {
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-log-line-acc {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-log-aggrid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.stats-log-aggrid dt {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.stats-log-aggrid dd {
+  margin: 0;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-log-best {
+  color: var(--amber);
+}
+
+.stats-log-best-tag {
+  margin-left: 6px;
+  font-family: var(--sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid var(--amber-line);
+  border-radius: 999px;
+  padding: 1px 6px;
+  vertical-align: middle;
+}
+
+/* ============================================================
+   Fix 4 — Customization panel
+   ============================================================ */
+.action-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.customize {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customize-hint {
+  font-size: 12px;
+  color: var(--amber);
+  font-weight: 600;
+  white-space: nowrap;
+  animation: fade-in 200ms ease;
+}
+
+.customize-hint::after {
+  content: ' \2192';
+}
+
+.customize-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  font-size: 18px;
+  line-height: 1;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+
+.customize-gear:hover,
+.customize.open .customize-gear {
+  border-color: var(--amber-line);
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.customize-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: 260px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.9);
+  z-index: 20;
+  animation: pop-in 160ms ease;
+}
+
+.customize-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customize-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--text-faint);
+}
+
+.customize-fonts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.customize-font {
+  padding: 7px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.customize-font:hover {
+  border-color: #333d4f;
+  color: var(--text);
+}
+
+.customize-font.selected {
+  border-color: var(--amber-line);
+  background: var(--amber-soft);
+  color: var(--amber-bright);
+}
+
+.customize-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.customize-toggle input {
+  accent-color: var(--amber);
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 620px) {
+  .stats-log-body {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .action-bar {
+    flex-direction: column;
+  }
+
+  .customize {
+    position: static;
+    transform: none;
+    justify-content: center;
+  }
+
+  .customize-panel {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* ============================================================
+   Fix 1 — Persistent room code panel + expiry countdown
+   ============================================================ */
+.room-active {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--amber-line);
+  border-radius: 12px;
+}
+
+.room-active-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.room-expiry {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+
+.room-enter {
+  align-self: stretch;
+}
+
+.room-expired-banner {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 92, 108, 0.1);
+  border: 1px solid rgba(255, 92, 108, 0.4);
+  color: #ff8b96;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   Fix 3 — Code Style customization section
+   ============================================================ */
+.customize-divider {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 2px 0;
+}
+
+.customize-sub-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.customize-naming {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.customize-naming-opt {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+
+.customize-naming-opt:hover {
+  border-color: #333d4f;
+  color: var(--text);
+}
+
+.customize-naming-opt.selected {
+  border-color: var(--amber-line);
+  background: var(--amber-soft);
+  color: var(--amber-bright);
+}
+
+.customize-warn {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--amber);
+}
+
+/* Auto-completed bracket/quote cell (Setting C): a subtle amber underline so
+   the player can see the character was filled in for them. */
+.cell.auto {
+  color: var(--amber);
+  text-decoration: underline;
+  text-decoration-color: var(--amber-line);
+  text-underline-offset: 2px;
 }

@@ -1,5 +1,12 @@
+// CHANGE LOG:
+//   - Fix 4: optional `fontSize` prop applies a code-* class so the code pane
+//     font scales with the customization setting.
+//   - Fix 3 (Setting C): forwards the engine's `autoCells` to CodePane so
+//     auto-completed brackets/quotes render with their distinct style.
+
 import type { ReactNode, RefObject } from 'react'
 import type { TypingEngine } from '../hooks/useTypingEngine'
+import type { CodeFontSize } from './CustomizationPanel'
 import { CodePane } from './CodePane'
 
 interface EditorWindowProps {
@@ -15,6 +22,8 @@ interface EditorWindowProps {
   locked?: boolean
   /** Overlay shown while locked (e.g. a race countdown). */
   lockedOverlay?: ReactNode
+  /** Fix 4 — code-pane font size; defaults to the standard size when omitted. */
+  fontSize?: CodeFontSize
 }
 
 export function EditorWindow({
@@ -28,9 +37,10 @@ export function EditorWindow({
   results,
   locked = false,
   lockedOverlay,
+  fontSize,
 }: EditorWindowProps) {
   return (
-    <div className="editor">
+    <div className={'editor' + (fontSize ? ` code-${fontSize}` : '')}>
       <div className="title-bar">
         <span className="dots" aria-hidden="true">
           <span className="dot dot-red" />
@@ -49,6 +59,7 @@ export function EditorWindow({
             errorAtCursor={engine.errorAtCursor}
             errorPulse={engine.errorPulse}
             activeLine={engine.activeLine}
+            autoCells={engine.autoCells}
           />
         </div>
 

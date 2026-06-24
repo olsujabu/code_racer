@@ -7,6 +7,16 @@
 //   - Newlines are typed by pressing Enter.
 //   - A wrong key does not advance the caret; the expected cell flashes red and
 //     the player must type the correct character (or backspace).
+//
+// CHANGE LOG (Fix 3 — Setting C, auto-close brackets):
+//   - applyAction takes an `autoClose` flag. When on, typing an opening bracket
+//     or quote whose matching close is the immediate next expected cell skips
+//     that close automatically (it is marked in `autoCells` for styling).
+//   - Backspace immediately after an auto-skip undoes both the close and the
+//     opening character together (VS Code style), tracked via `lastAuto`.
+//   - Auto-completed characters never count as keystrokes and are subtracted
+//     from the WPM character count (`autoCount`), but the editor progress bar
+//     still advances by cursor position so it reaches 100% on completion.
 
 import { tokenizeLine, type Dialect, type TokenType } from './tokenizer'
 
@@ -102,6 +112,13 @@ export interface EngineState {
   startTime: number | null
   endTime: number | null
   isComplete: boolean
+  /** Cell indices auto-completed by Setting C (for distinct styling). */
+  autoCells: number[]
+  /** How many cells were auto-completed (excluded from typed/WPM). */
+  autoCount: number
+  /** Close-cell index of the most recent auto-skip while the cursor sits right
+   *  after it — enables the combined "undo open + close" backspace. */
+  lastAuto: number | null
 }
 
 export function initialState(meta: CellMeta): EngineState {
@@ -114,7 +131,19 @@ export function initialState(meta: CellMeta): EngineState {
     startTime: null,
     endTime: null,
     isComplete: false,
+    autoCells: [],
+    autoCount: 0,
+    lastAuto: null,
   }
+}
+
+/** Opening -> closing character pairs eligible for auto-close. */
+const CLOSERS: Record<string, string> = {
+  '(': ')',
+  '[': ']',
+  '{': '}',
+  '"': '"',
+  "'": "'",
 }
 
 export type KeyAction =
@@ -141,6 +170,7 @@ export function applyAction(
   action: KeyAction,
   cells: Cell[],
   now: number,
+  autoClose = false,
 ): EngineState {
   if (state.isComplete) return state
 
@@ -148,9 +178,23 @@ export function applyAction(
     if (state.errorAtCursor) {
       return { ...state, errorAtCursor: false }
     }
+    // Combined undo: a backspace immediately after an auto-skip removes both the
+    // auto-completed close and the opening character the user typed.
+    if (autoClose && state.lastAuto != null) {
+      const open = prevIndex(cells, state.lastAuto)
+      if (open >= 0) {
+        return {
+          ...state,
+          cursor: open,
+          autoCount: Math.max(0, state.autoCount - 1),
+          autoCells: state.autoCells.filter((x) => x !== state.lastAuto),
+          lastAuto: null,
+        }
+      }
+    }
     const prev = prevIndex(cells, state.cursor)
     if (prev < 0) return state
-    return { ...state, cursor: prev }
+    return { ...state, cursor: prev, lastAuto: null }
   }
 
   const cell = cells[state.cursor]
@@ -169,10 +213,28 @@ export function applyAction(
       totalKeystrokes,
       errorAtCursor: true,
       errorPulse: state.errorPulse + 1,
+      lastAuto: null,
     }
   }
 
-  const cursor = nextIndex(cells, state.cursor)
+  let cursor = nextIndex(cells, state.cursor)
+  let autoCells = state.autoCells
+  let autoCount = state.autoCount
+  let lastAuto: number | null = null
+
+  // Setting C: if the user typed an opener and the very next expected cell is
+  // its matching closer, skip that closer for them.
+  if (autoClose && action.kind === 'char') {
+    const closer = CLOSERS[action.value]
+    const nextCell = cells[cursor]
+    if (closer && nextCell && !nextCell.newline && !nextCell.skip && nextCell.ch === closer) {
+      autoCells = [...autoCells, cursor]
+      autoCount = autoCount + 1
+      lastAuto = cursor
+      cursor = nextIndex(cells, cursor)
+    }
+  }
+
   const isComplete = cursor >= cells.length
   return {
     ...state,
@@ -181,6 +243,9 @@ export function applyAction(
     correctKeystrokes: state.correctKeystrokes + 1,
     errorAtCursor: false,
     cursor,
+    autoCells,
+    autoCount,
+    lastAuto,
     isComplete,
     endTime: isComplete ? now : state.endTime,
   }
@@ -201,14 +266,17 @@ export function computeStats(state: EngineState, meta: CellMeta, now: number): L
   // Clamp the cursor: during a snippet swap the cursor can momentarily exceed
   // the new prefix array before state resets.
   const safeCursor = Math.max(0, Math.min(state.cursor, meta.nonSkipPrefix.length - 1))
-  const typed = meta.nonSkipPrefix[safeCursor]
+  // Position-based count drives the progress bar (so it still reaches 100%);
+  // the user-typed count excludes auto-completed chars so WPM is not inflated.
+  const positionTyped = meta.nonSkipPrefix[safeCursor]
+  const typed = Math.max(0, positionTyped - state.autoCount)
   const minutes = elapsedMs / 60000
   // Cap at a ceiling no human can exceed so a near-zero elapsed time (e.g. the
   // first keystroke's frame) can never flash an absurd value or break layout.
   const wpm = minutes > 0 ? Math.min(typed / 5 / minutes, 999) : 0
   const accuracy =
     state.totalKeystrokes > 0 ? state.correctKeystrokes / state.totalKeystrokes : 1
-  const progress = meta.totalNonSkip > 0 ? typed / meta.totalNonSkip : 0
+  const progress = meta.totalNonSkip > 0 ? positionTyped / meta.totalNonSkip : 0
   return {
     wpm,
     accuracy,

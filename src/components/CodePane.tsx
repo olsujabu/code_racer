@@ -1,3 +1,6 @@
+// Fix 3 (Setting C): renders auto-completed bracket/quote cells with a distinct
+// `.cell.auto` style so the player can see which character was skipped for them.
+
 import { useMemo } from 'react'
 import type { Cell } from '../lib/typing'
 
@@ -7,6 +10,8 @@ interface CodePaneProps {
   errorAtCursor: boolean
   errorPulse: number
   activeLine: number
+  /** Cell indices auto-completed by Setting C. */
+  autoCells?: number[]
 }
 
 interface Line {
@@ -27,8 +32,9 @@ function groupByLine(cells: Cell[]): Line[] {
   return lines
 }
 
-export function CodePane({ cells, cursor, errorAtCursor, errorPulse, activeLine }: CodePaneProps) {
+export function CodePane({ cells, cursor, errorAtCursor, errorPulse, activeLine, autoCells }: CodePaneProps) {
   const lines = useMemo(() => groupByLine(cells), [cells])
+  const autoSet = useMemo(() => new Set(autoCells ?? []), [autoCells])
 
   return (
     <div className="code-pane" aria-hidden="true">
@@ -49,6 +55,7 @@ export function CodePane({ cells, cursor, errorAtCursor, errorPulse, activeLine 
               classes.push(lit ? 'lit' : 'dim')
               if (isCurrent) classes.push('caret')
               if (isError) classes.push('error')
+              if (autoSet.has(cell.index)) classes.push('auto')
 
               const key = isError ? `c${cell.index}-${errorPulse}` : `c${cell.index}`
               const content = cell.newline ? ' ' : cell.ch

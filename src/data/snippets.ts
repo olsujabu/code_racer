@@ -5,6 +5,12 @@
 //
 // The data is structured so adding a language (Go, TypeScript, C#, ...) or a
 // new algorithm is a matter of extending these arrays.
+//
+// CHANGE LOG (Fix 2 — algorithm info panel):
+//   - Added the `AlgorithmInfo` type and an `info` field on every Algorithm
+//     entry carrying time/space complexity and a one-line description, so the
+//     UI can show complexity metadata for the selected algorithm.
+//   - No snippet content (impls) was modified.
 
 export type LanguageId = 'python' | 'javascript' | 'java' | 'cpp'
 
@@ -25,11 +31,23 @@ export const LANGUAGES: Language[] = [
   { id: 'cpp', name: 'C++', ext: 'cpp', case: 'snake', tokLang: 'cpp' },
 ]
 
+/** Complexity / summary metadata shown in the Algorithm Info panel. */
+export interface AlgorithmInfo {
+  /** e.g. "O(log n)", or "O(n) / O(n^2) / O(n^2)" when best/avg/worst differ. */
+  timeComplexity: string
+  /** e.g. "O(1)". */
+  spaceComplexity: string
+  /** One sentence, max. */
+  description: string
+}
+
 export interface Algorithm {
   id: string
   name: string
   /** Longer snippets sit behind the "advanced" filter. */
   advanced: boolean
+  /** Complexity + description shown above the editor. */
+  info: AlgorithmInfo
   impls: Record<LanguageId, string>
 }
 
@@ -38,6 +56,11 @@ export const ALGORITHMS: Algorithm[] = [
     id: 'binary-search',
     name: 'Binary Search',
     advanced: false,
+    info: {
+      timeComplexity: 'O(log n)',
+      spaceComplexity: 'O(1)',
+      description: 'Divides the search space in half each step.',
+    },
     impls: {
       python: `def binary_search(arr, target):
     low, high = 0, len(arr) - 1
@@ -101,6 +124,11 @@ export const ALGORITHMS: Algorithm[] = [
     id: 'linear-search',
     name: 'Linear Search',
     advanced: false,
+    info: {
+      timeComplexity: 'O(n)',
+      spaceComplexity: 'O(1)',
+      description: 'Scans each element in order until the target is found.',
+    },
     impls: {
       python: `def linear_search(arr, target):
     for i in range(len(arr)):
@@ -137,6 +165,11 @@ export const ALGORITHMS: Algorithm[] = [
     id: 'bubble-sort',
     name: 'Bubble Sort',
     advanced: false,
+    info: {
+      timeComplexity: 'O(n) / O(n^2) / O(n^2)',
+      spaceComplexity: 'O(1)',
+      description: 'Repeatedly swaps adjacent out-of-order elements until sorted.',
+    },
     impls: {
       python: `def bubble_sort(arr):
     n = len(arr)
@@ -184,6 +217,11 @@ export const ALGORITHMS: Algorithm[] = [
     id: 'insertion-sort',
     name: 'Insertion Sort',
     advanced: false,
+    info: {
+      timeComplexity: 'O(n) / O(n^2) / O(n^2)',
+      spaceComplexity: 'O(1)',
+      description: 'Builds the sorted list one element at a time by inserting each in place.',
+    },
     impls: {
       python: `def insertion_sort(arr):
     for i in range(1, len(arr)):
@@ -234,6 +272,11 @@ export const ALGORITHMS: Algorithm[] = [
     id: 'selection-sort',
     name: 'Selection Sort',
     advanced: false,
+    info: {
+      timeComplexity: 'O(n^2)',
+      spaceComplexity: 'O(1)',
+      description: 'Repeatedly selects the smallest remaining element and appends it.',
+    },
     impls: {
       python: `def selection_sort(arr):
     n = len(arr)
@@ -289,6 +332,11 @@ export const ALGORITHMS: Algorithm[] = [
     id: 'quick-sort',
     name: 'Quick Sort',
     advanced: false,
+    info: {
+      timeComplexity: 'O(n log n) / O(n log n) / O(n^2)',
+      spaceComplexity: 'O(log n)',
+      description: 'Partitions around a pivot and recursively sorts each side.',
+    },
     impls: {
       python: `def quick_sort(arr):
     if len(arr) <= 1:
@@ -349,6 +397,11 @@ export const ALGORITHMS: Algorithm[] = [
     id: 'merge-sort',
     name: 'Merge Sort',
     advanced: false,
+    info: {
+      timeComplexity: 'O(n log n)',
+      spaceComplexity: 'O(n)',
+      description: 'Recursively splits the list and merges the sorted halves.',
+    },
     impls: {
       python: `def merge_sort(arr):
     if len(arr) <= 1:
@@ -436,6 +489,11 @@ export const ALGORITHMS: Algorithm[] = [
     id: 'heap-sort',
     name: 'Heap Sort',
     advanced: true,
+    info: {
+      timeComplexity: 'O(n log n)',
+      spaceComplexity: 'O(1)',
+      description: 'Builds a heap, then repeatedly extracts the largest element.',
+    },
     impls: {
       python: `import heapq
 def heap_sort(arr):
@@ -519,6 +577,11 @@ void heap_sort(vector<int>& arr) {
     id: 'bfs',
     name: 'BFS',
     advanced: true,
+    info: {
+      timeComplexity: 'O(V + E)',
+      spaceComplexity: 'O(V)',
+      description: 'Explores a graph level by level using a queue.',
+    },
     impls: {
       python: `from collections import deque
 def bfs(graph, start):
@@ -592,6 +655,11 @@ def bfs(graph, start):
     id: 'dfs',
     name: 'DFS',
     advanced: true,
+    info: {
+      timeComplexity: 'O(V + E)',
+      spaceComplexity: 'O(V)',
+      description: 'Explores as far as possible along each branch using a stack.',
+    },
     impls: {
       python: `def dfs(graph, node, visited=None):
     if visited is None:
@@ -659,6 +727,11 @@ def bfs(graph, start):
     id: 'dijkstra',
     name: 'Dijkstra',
     advanced: true,
+    info: {
+      timeComplexity: 'O((V + E) log V)',
+      spaceComplexity: 'O(V)',
+      description: 'Finds shortest paths using a min-priority queue of distances.',
+    },
     impls: {
       python: `import heapq
 def dijkstra(graph, start):

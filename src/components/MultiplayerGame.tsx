@@ -1,3 +1,10 @@
+// CHANGE LOG (Fix 1 — persistent room code):
+//   - RoomEntry no longer mints a fresh code on every "Create a room" click. It
+//     uses useRoomCode() to reuse an unexpired stored code or mint a new 6-char
+//     one, shows it with a live "Expires in M:SS" countdown, auto-surfaces an
+//     existing valid code on mount, and shows an expiry warning banner once the
+//     5-minute window elapses. The join-code input now accepts 6 characters.
+
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   ALGORITHMS,
@@ -7,8 +14,9 @@ import {
   getLanguage,
   type LanguageId,
 } from '../data/snippets'
-import { makeRoomCode, saveResult } from '../lib/multiplayer'
+import { saveResult } from '../lib/multiplayer'
 import { useRoom, type RoomApi } from '../hooks/useRoom'
+import { useRoomCode, formatCountdown } from '../hooks/useRoomCode'
 import { useTypingEngine } from '../hooks/useTypingEngine'
 import { EditorWindow } from './EditorWindow'
 import { SelectorBar } from './SelectorBar'
@@ -39,19 +47,44 @@ export function MultiplayerGame({ userId, username }: Identity) {
 
 function RoomEntry({ onEnter }: { onEnter: (code: string, host: boolean) => void }) {
   const [joinCode, setJoinCode] = useState('')
+  const roomCode = useRoomCode()
+
   const join = (e: FormEvent) => {
     e.preventDefault()
     const code = joinCode.trim().toUpperCase()
     if (code.length >= 4) onEnter(code, false)
   }
+
   return (
     <div className="mp-entry">
       <div className="mp-card">
         <h2>Race a friend</h2>
         <p className="mp-sub">Create a room and share the code, or join one.</p>
-        <button className="control-btn primary mp-create" onClick={() => onEnter(makeRoomCode(), true)}>
+        <button className="control-btn primary mp-create" onClick={roomCode.createOrReuse}>
           Create a room
         </button>
+
+        {roomCode.expired && (
+          <div className="room-expired-banner" role="alert">
+            This room code has expired. Click &ldquo;Create a Room&rdquo; to get a new one.
+          </div>
+        )}
+
+        {roomCode.code && (
+          <div className="room-active">
+            <div className="room-active-row">
+              <span className="lobby-code-value">{roomCode.code}</span>
+              <span className="room-expiry">Expires in {formatCountdown(roomCode.remainingMs)}</span>
+            </div>
+            <button
+              className="control-btn primary room-enter"
+              onClick={() => onEnter(roomCode.code as string, true)}
+            >
+              Enter room &rarr;
+            </button>
+          </div>
+        )}
+
         <div className="mp-or"><span>or join with a code</span></div>
         <form className="mp-join" onSubmit={join}>
           <input
@@ -59,7 +92,7 @@ function RoomEntry({ onEnter }: { onEnter: (code: string, host: boolean) => void
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
             placeholder="CODE"
-            maxLength={5}
+            maxLength={6}
             aria-label="Room code"
           />
           <button className="control-btn" type="submit">Join</button>
